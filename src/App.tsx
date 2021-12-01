@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import Peer from 'peerjs'
 
@@ -7,6 +7,14 @@ interface IMessage {
   date: any;
   owner: 'me' | 'remote'
 }
+
+async function getVideoStream() {
+  return new Promise((resolve, reject) => {
+     navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => resolve(stream))
+  })
+}
+
+const stream = getVideoStream()
 
 function Message(props: IMessage) {
   return <div className={`message ${props.owner === 'me' ? 'right' : 'left'}`}>
@@ -25,6 +33,12 @@ function App() {
 
   useEffect(() => {
     updatePeer(new Peer())
+
+    getVideoStream().then(stream => {
+        const video: any = document.querySelector('#video')
+        video.srcObject = stream
+    })
+
   }, [])
 
   useEffect(() => {
@@ -77,7 +91,8 @@ function App() {
   if (peer !== null) {
     return (
       <div className="App">
-        {
+        <video id='video' autoPlay />
+        {/*
           peerConnection === null
           ? <>
             <p>my id is <strong>{peerId}</strong></p>
@@ -100,7 +115,7 @@ function App() {
               onChange={(e: any) => updateNewMessage(e.target.value)} 
               />
           </ div>
-        }
+        */}
       </div>
     );
   }
