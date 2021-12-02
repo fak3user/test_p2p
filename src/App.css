@@ -69,6 +69,8 @@ div.video {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   grid-template-rows: repeat(5, minmax(0, 1fr));
   width: 70%;
+  margin-top: 10px;
+  background:  #ddd;
 }
 video {
   width: 100%;
