@@ -1,101 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import Peer from 'peerjs'
-import { from } from 'rxjs'
-import { map } from 'rxjs/operators';
+import { Chat, Video } from './pages'
+import { ConnectForm } from './components'
 
-interface IMessage {
+export interface IMessage {
   text: string;
   date: any;
   owner: 'me' | 'remote'
 }
-
-async function getVideoStream() {
-  return new Promise((resolve, reject) => {
-     navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => resolve(stream))
-  })
-}
-const stream = getVideoStream()
-
-function Message(props: IMessage) {
-  return <div className={`message ${props.owner === 'me' ? 'right' : 'left'}`}>
-    <p>{props.date.toLocaleTimeString()}</p>
-    <p>{props.text}</p>
-  </div> 
-}
-
-interface IChatProps {
-  messages: IMessage[];
-  newMessage: string;
-  sendMessage: any;
-  updateNewMessage: any;
-}
-function Chat(props: any) {
-  return <div className='chat'>
-    <div className='messages'>
-      {  props.messages.map((message: IMessage, index: number) => <Message key={`${message.text}-${index}`} {...message} />) }
-    </div>
-    <input 
-      type="text" 
-      value={props.newMessage} 
-      onKeyDown={
-        (e: any) => {
-          if (e.key === 'Enter') {
-            props.sendMessage()
-          }
-        }
-      } 
-      onChange={(e: any) => props.updateNewMessage(e.target.value)} 
-      />
-  </ div>
-}
-
-
-function VideoChat(props: any) {
-  const [isStreamFetching, setStreamFetching] = useState(false)
-
-  useEffect(() => {
-    getVideoStream().then(stream => {
-      setStreamFetching(true)
-      const video: any = document.querySelector('#video')
-
-      props.onGetStream(stream)
-
-      video.srcObject = stream
-    })
-  }, [])
-
-  return <>
-    <video id='video' autoPlay />
-    <video id='remoteVideo' autoPlay />
-  </>
-
-}
+export type TConnectionType = 'text' | 'video';
 
 function App() {
-  const [chatType, setChatType] = useState<'text' | 'video'>('text')
-  const [stream, updateStream] = useState<any>(null)
-  const [peer, updatePeer] = useState<any>(null)
+  const [connectionType, setConnectionType] = useState<TConnectionType>('text')
+
+  const [peer, updatePeer] = useState<any>(null) // main peerjs object
   const [peerId, updatePeerId] = useState<string>('')
   const [remotePeerId, updateRemotePeerId] = useState<string>('')
-  const [peerConnection, updatePeerConnection] = useState<any>(null)
-  const [peerCall, updatePeerCall] = useState<any>(null)
+
+  const [peerChatConnection, updatePeerChatConnection] = useState<any>(null) // chat connection object 
   const [messages, updateMessages] = useState<IMessage[]>([])
   const [newMessage, updateNewMessage] = useState<string>('')
 
-  const [isStreamFetching, setStreamFetching] = useState(true)
-
-
-  useEffect(() => {
-    getVideoStream().then(stream => {
-      setStreamFetching(false)
-
-      updateStream(stream)
-
-      const video: any = document.querySelector('#video')
-      video.srcObject = stream
-    })
-  }, [])
+  const [peerVideoConnection, updatePeerVideoConnection] = useState<any>(null) // video connection object 
+  const [videoStreamSelf, setVideoStreamSelf] = useState<any>(null)
+  const [videoStreamRemote, setVideoStreamRemote] = useState<any>(null)
 
   useEffect(() => {
     updatePeer(new Peer())
@@ -104,19 +33,23 @@ function App() {
   useEffect(() => {
     if (peer !== null) {
       peer.on('open', function(id: string) {
-        updatePeerId(id)
+        updatePeerId(id) 
       });
 
       peer.on('connection', function(data: any) {
-        updatePeerConnection(data)
+        updatePeerChatConnection(data)
       })
+
+      peer.on('call', function(call: any) {
+        updatePeerVideoConnection(call)
+      });
     }
   }, [peer])
 
   useEffect(() => {
-     if (peerConnection !== null) {
-        peerConnection.on('open', function() {
-          peerConnection.on('data', function(message: string) {
+     if (peerChatConnection !== null) {
+        peerChatConnection.on('open', function() {
+          peerChatConnection.on('data', function(message: string) {
             updateMessages(_messages => 
               [
                 ..._messages, 
@@ -129,30 +62,23 @@ function App() {
           });
       });
     }
-  }, [peerConnection])
+  }, [peerChatConnection])
 
   useEffect(() => {
-    if (peerCall !== null) {
-      peerCall.on('stream', function(stream) {
-        const remoteVideo: any = document.querySelector('#removeVideo')
-        remoteVideo.srcObject = stream
-      });
+    if (peerVideoConnection !== null) {
+      peerVideoConnection.answer(videoStreamSelf)
+      peerVideoConnection.on('stream', function(stream: any) {
+        setVideoStreamRemote(stream)
+      })
     }
-  }, [peerCall])
-
-  function handleGetStream(stream: any) {
-    updateStream(stream)
-  }
+  }, [peerVideoConnection])
 
   function handleConnectText() {
-    setChatType('text')
-    updatePeerConnection(peer.connect(remotePeerId))
+    updatePeerChatConnection(peer.connect(remotePeerId))
   }
   function handleConnectVideo() {
-    setChatType('video')
-    updatePeerCall(peer.call(remotePeerId, stream))
+    updatePeerVideoConnection(peer.call(remotePeerId, videoStreamSelf))
   }
-
   function sendMessage() {
     updateMessages(_messages => 
       [
@@ -163,40 +89,47 @@ function App() {
           owner: 'me'
         }
         ])
-    peerConnection.send(newMessage)
+    peerChatConnection.send(newMessage)
     updateNewMessage('')
   }
 
-  if (peer !== null && stream !== null) {
+  function handleFetchingStream(stream: MediaStream) {
+    setVideoStreamSelf(stream)
+  }
 
-      console.log(stream)
-
+  if (peer !== null) {
       return (
-        <div className="App">
-          <p>my id is <strong>{peerId}</strong></p>
-          <input type="text" value={remotePeerId} onChange={(e: any) => updateRemotePeerId(e.target.value)} />
-          <button onClick={handleConnectVideo}>connect to p2p video</ button>
-          {/*
-            peerConnection === null
-            ? ...
-            : chatType === 'text'
-              ? <Chat
-                messages={messages}
-                newMessage={newMessage}
-                sendMessage={sendMessage}
-                updateNewMessage={updateNewMessage}
+        <div className="app">
+          {
+             (connectionType === 'text'
+                          ? peerChatConnection === null
+                          : peerVideoConnection === null) && 
+              <ConnectForm
+                peerId={peerId}
+                remotePeerId={remotePeerId}
+                connectionType={connectionType}
+                onConnectionTypeChange={setConnectionType}
+                isButtonDisabled={connectionType === 'text' ? false : (videoStreamSelf === null)}
+                onRemotePeerChange={updateRemotePeerId}
+                onConnectClick={connectionType === 'text' ? handleConnectText : handleConnectVideo}
                 />
-              : <VideoChat 
-                onGetStream={handleGetStream}
-                />
-          */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <video id='video' width='300' autoPlay />
-            {
-              peerConnection !== null && 
-              <video id='remoteVideo' autoPlay />
-            }
-          </div>
+          }
+          {
+            (connectionType === 'text' && peerChatConnection !== null) &&
+            <Chat
+              messages={messages}
+              newMessage={newMessage}
+              sendMessage={sendMessage}
+              updateNewMessage={updateNewMessage}
+              />
+          }
+          {
+            connectionType === 'video' &&
+            <Video 
+              onFetchingStream={handleFetchingStream}
+              remoteStream={videoStreamRemote}
+              />
+          }
         </div>
       );
     }
