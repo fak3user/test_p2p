@@ -1,26 +1,31 @@
 {
-  "compilerOptions": {
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx"
-  },
-  "include": [
-    "src"
-  ]
+    "compilerOptions": {
+        // Settings for the compiler
+        "outDir": "./dist/",
+        "sourceMap": true,
+        "target": "es2015",
+        "module": "ESNext",
+        "jsx": "react-jsx",
+    
+        // Rules for your code
+        "strict": true,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "noUnusedParameters": false,
+        "noUnusedLocals": false,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitOverride": true,
+
+        // Settings for linking source files
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+
+    },
+    // Folder for your code
+    "include": [
+        "./src/**/*"
+    ]
 }
